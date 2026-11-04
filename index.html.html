@@ -1,0 +1,1026 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tribunal da Coruja — Crimes contra a Pessoa</title>
+<style>
+  /* ===== Paleta e base ===== */
+  :root {
+    --bg1: #eef2ff; --bg2: #fdf2f8;
+    --card: #ffffff; --ink: #1e1b4b; --muted: #64748b;
+    --brand: #6d28d9; --brand2: #8b5cf6; --soft: #ede9fe; --soft2: #ddd6fe;
+    --ok: #047857; --ok-bg: #d1fae5;
+    --bad: #b91c1c; --bad-bg: #fee2e2;
+    --gold: #f59e0b; --line: #e5e7eb; --radius: 18px;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink); line-height: 1.5;
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: linear-gradient(135deg, var(--bg1), var(--bg2)) fixed;
+  }
+  #app { max-width: 760px; margin: 0 auto; padding: 16px 16px 40px; }
+  .screen { display: none; }
+  .screen.on { display: block; animation: surgir .35s ease; }
+  .card { background: var(--card); border-radius: var(--radius); padding: 22px; box-shadow: 0 10px 30px rgba(76, 29, 149, .12); }
+  h1 { margin: 0 0 6px; font-size: clamp(1.5rem, 4.5vw, 2.2rem); color: var(--brand); line-height: 1.15; outline: none; }
+  .muted { color: var(--muted); }
+  :focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+  /* ===== Botões ===== */
+  .btn {
+    border: 0; border-radius: 12px; padding: 12px 22px; font: inherit; font-weight: 800; cursor: pointer;
+    background: var(--brand); color: #fff; box-shadow: 0 4px 14px rgba(109, 40, 217, .35);
+    transition: transform .1s, filter .2s;
+  }
+  .btn:hover:not(:disabled) { filter: brightness(1.1); }
+  .btn:active:not(:disabled) { transform: translateY(1px); }
+  .btn.sec { background: #fff; color: var(--brand); border: 2px solid var(--soft2); box-shadow: none; }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .acoes { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+
+  /* ===== Mascote (Doutora Coruja) ===== */
+  .mascote-row { display: flex; align-items: flex-end; gap: 14px; margin-bottom: 16px; }
+  .coruja { width: 110px; height: auto; flex-shrink: 0; animation: flutuar 3s ease-in-out infinite; }
+  .coruja .olhos-felizes, .coruja .sobrancelhas, .coruja .lagrima { display: none; }
+  .coruja .olhos-abertos { transform-box: fill-box; transform-origin: center; animation: piscar 4s infinite; }
+  .coruja .asa-e, .coruja .asa-d { transform-box: fill-box; transform-origin: top center; }
+  .coruja.feliz { animation: pular .6s ease 2; }
+  .coruja.feliz .olhos-abertos { display: none; }
+  .coruja.feliz .olhos-felizes { display: inline; }
+  .coruja.feliz .asa-e { animation: bater-e .3s ease-in-out 4; }
+  .coruja.feliz .asa-d { animation: bater-d .3s ease-in-out 4; }
+  .coruja.triste { animation: balancar .5s ease 2; }
+  .coruja.triste .sobrancelhas, .coruja.triste .lagrima { display: inline; }
+  .coruja.triste .pupila { transform: translateY(3px); }
+  .coruja.pensando .pupila { transform: translate(3px, -3px); }
+  .coruja.pensando .sobrancelhas { display: inline; }
+  .balao {
+    position: relative; flex: 1; background: #fff; border: 2px solid var(--soft2); border-radius: 16px;
+    padding: 12px 16px; font-weight: 600; box-shadow: 0 4px 12px rgba(76, 29, 149, .08);
+  }
+  .balao::before {
+    content: ""; position: absolute; left: -10px; bottom: 22px; width: 16px; height: 16px; background: #fff;
+    border-left: 2px solid var(--soft2); border-bottom: 2px solid var(--soft2); transform: rotate(45deg);
+  }
+
+  /* ===== HUD: vidas, pontos, progresso ===== */
+  .hud { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; font-weight: 800; margin-bottom: 8px; }
+  .vidas { font-size: 1.3rem; letter-spacing: 2px; }
+  .vidas .perdida { filter: grayscale(1); opacity: .3; }
+  .pontos { background: var(--soft); color: var(--brand); padding: 4px 12px; border-radius: 999px; }
+  .combo { background: #fef3c7; color: #92400e; padding: 4px 10px; border-radius: 999px; font-size: .9rem; }
+  .progresso { height: 12px; background: var(--soft); border-radius: 999px; overflow: hidden; margin-bottom: 4px; }
+  .progresso span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--brand2), var(--gold)); border-radius: 999px; transition: width .5s ease; }
+  .prog-txt { font-size: .85rem; text-align: right; margin-bottom: 14px; }
+
+  /* ===== Caso e alternativas ===== */
+  .tag { display: inline-block; background: var(--soft); color: var(--brand); font-size: .78rem; font-weight: 800; padding: 3px 10px; border-radius: 999px; text-transform: uppercase; letter-spacing: .5px; }
+  .caso-titulo { margin: 8px 0 6px; font-size: 1.25rem; outline: none; }
+  .caso-texto { background: #faf5ff; border-left: 4px solid var(--brand2); padding: 12px 14px; border-radius: 0 12px 12px 0; margin: 0 0 12px; }
+  .pergunta { font-weight: 800; margin: 0 0 10px; }
+  .opcoes { display: grid; gap: 10px; }
+  .opcao {
+    display: flex; align-items: center; gap: 12px; text-align: left; width: 100%; padding: 12px 14px;
+    background: #fff; border: 2px solid var(--line); border-radius: 14px; font: inherit; color: var(--ink);
+    cursor: pointer; transition: border-color .2s, background .2s, transform .1s;
+  }
+  .opcao:hover:not(:disabled) { border-color: var(--brand2); background: #faf5ff; transform: translateX(3px); }
+  .opcao:disabled { cursor: default; }
+  .opcao .letra {
+    flex-shrink: 0; width: 32px; height: 32px; display: grid; place-items: center; border-radius: 10px;
+    background: var(--soft); color: var(--brand); font-weight: 900;
+  }
+  .opcao.certa { border-color: var(--ok); background: var(--ok-bg); }
+  .opcao.certa .letra { background: var(--ok); color: #fff; }
+  .opcao.errada { border-color: var(--bad); background: var(--bad-bg); }
+  .opcao.errada .letra { background: var(--bad); color: #fff; }
+  .opcao.apagada { opacity: .55; }
+
+  /* ===== Feedback (explicação da lei) ===== */
+  .feedback { margin-top: 14px; padding: 14px 16px; border-radius: 14px; border: 2px solid; animation: surgir .3s ease; }
+  .feedback.ok { background: var(--ok-bg); border-color: var(--ok); }
+  .feedback.bad { background: var(--bad-bg); border-color: var(--bad); }
+  .feedback h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .feedback .artigo { display: inline-block; font-weight: 800; font-size: .85rem; background: rgba(255,255,255,.7); padding: 2px 10px; border-radius: 999px; margin-bottom: 6px; }
+  .feedback p { margin: 4px 0; }
+  .rodape-caso { display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+  .atalhos { font-size: .8rem; }
+
+  /* ===== Telas de início e fim ===== */
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 16px 0; text-align: center; }
+  .stats div { background: var(--soft); border-radius: 14px; padding: 10px; }
+  .stats b { display: block; font-size: 1.4rem; color: var(--brand); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 0; padding: 0; list-style: none; }
+  .chips li { background: #fff; border: 1.5px solid var(--soft2); color: var(--brand); font-size: .82rem; font-weight: 700; padding: 4px 10px; border-radius: 999px; }
+  .regras { padding-left: 20px; margin: 8px 0; }
+  .estrelas { font-size: 2.6rem; letter-spacing: 6px; text-align: center; margin: 4px 0; }
+  .estrelas .apagada { filter: grayscale(1); opacity: .25; }
+  .revisao { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+  .revisao li { background: #fff7ed; border-left: 4px solid var(--gold); border-radius: 0 10px 10px 0; padding: 8px 12px; font-size: .92rem; }
+
+  /* ===== Teoria ===== */
+  .rotulo { display: block; font-size: .85rem; font-weight: 700; margin-top: 12px; }
+  .busca { width: 100%; padding: 12px 14px; border: 2px solid var(--soft2); border-radius: 12px; font: inherit; margin: 4px 0 12px; }
+  .busca:focus { border-color: var(--brand2); }
+  .indice { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+  .indice a { background: var(--soft); color: var(--brand); font-size: .82rem; font-weight: 700; padding: 5px 11px; border-radius: 999px; text-decoration: none; }
+  .indice a:hover { background: var(--soft2); }
+  .capitulo { margin: 24px 0 10px; font-size: 1.15rem; color: var(--brand); scroll-margin-top: 12px; }
+  .teoria-item { background: #fff; border: 2px solid var(--line); border-radius: 14px; margin-bottom: 10px; overflow: hidden; transition: border-color .2s; }
+  .teoria-item[open] { border-color: var(--soft2); box-shadow: 0 4px 14px rgba(76, 29, 149, .08); }
+  .teoria-item summary { cursor: pointer; padding: 12px 14px; font-weight: 800; list-style: none; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .teoria-item summary::-webkit-details-marker { display: none; }
+  .teoria-item summary::after { content: "+"; flex-shrink: 0; width: 26px; height: 26px; display: grid; place-items: center; border-radius: 8px; background: var(--soft); color: var(--brand); font-weight: 900; }
+  .teoria-item[open] summary::after { content: "−"; }
+  .teoria-item summary:hover { background: #faf5ff; }
+  .teoria-item .art { color: var(--brand); }
+  .teoria-corpo { padding: 0 14px 14px; }
+  .pena { display: inline-block; background: #fef3c7; color: #92400e; font-weight: 800; font-size: .85rem; padding: 3px 10px; border-radius: 999px; margin-bottom: 6px; }
+  .teoria-corpo p { margin: 6px 0; }
+  .teoria-corpo ul { padding-left: 20px; margin: 8px 0; }
+  .teoria-corpo li { margin-bottom: 4px; }
+  .exemplo, .atualizacao { border-radius: 0 10px 10px 0; padding: 8px 12px; margin-top: 8px; font-size: .93rem; }
+  .exemplo { background: #ecfdf5; border-left: 4px solid var(--ok); }
+  .atualizacao { background: #fff7ed; border-left: 4px solid var(--gold); }
+
+  /* ===== Confete ===== */
+  .confete { position: fixed; top: -12px; width: 10px; height: 14px; border-radius: 2px; pointer-events: none; z-index: 50; animation: cair linear forwards; }
+
+  /* ===== Animações ===== */
+  @keyframes surgir { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes flutuar { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+  @keyframes pular { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-16px) scale(1.05); } }
+  @keyframes balancar { 0%, 100% { transform: rotate(0); } 25% { transform: rotate(-7deg); } 75% { transform: rotate(7deg); } }
+  @keyframes piscar { 0%, 92%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  @keyframes bater-e { 50% { transform: rotate(25deg); } }
+  @keyframes bater-d { 50% { transform: rotate(-25deg); } }
+  @keyframes tremer { 0%, 100% { transform: translateX(0); } 20%, 60% { transform: translateX(-8px); } 40%, 80% { transform: translateX(8px); } }
+  @keyframes cair { to { transform: translateY(105vh) rotate(720deg); opacity: .8; } }
+  .tremer { animation: tremer .4s ease; }
+
+  @media (max-width: 520px) {
+    .card { padding: 16px; }
+    .coruja { width: 80px; }
+    .stats b { font-size: 1.15rem; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+</head>
+<body>
+<!-- Mascote em SVG: um único molde, clonado em cada tela pelo JS -->
+<template id="tpl-coruja">
+  <svg class="coruja" viewBox="0 0 120 130" aria-hidden="true">
+    <path class="asa-e" d="M24 62 Q4 82 18 108 Q30 94 32 72 Z" fill="#6d28d9"/>
+    <path class="asa-d" d="M96 62 Q116 82 102 108 Q90 94 88 72 Z" fill="#6d28d9"/>
+    <path d="M30 38 L22 12 L48 30 Z" fill="#7c3aed"/>
+    <path d="M90 38 L98 12 L72 30 Z" fill="#7c3aed"/>
+    <ellipse cx="60" cy="72" rx="40" ry="46" fill="#8b5cf6"/>
+    <ellipse cx="60" cy="88" rx="24" ry="26" fill="#ede9fe"/>
+    <path d="M50 80 q5 5 10 0 q5 5 10 0 M46 92 q7 6 14 0 q7 6 14 0" stroke="#c4b5fd" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    <path d="M46 116 v6 M52 116 v6 M68 116 v6 M74 116 v6" stroke="#f59e0b" stroke-width="4" stroke-linecap="round"/>
+    <g class="olhos-abertos">
+      <circle cx="44" cy="54" r="14" fill="#fff"/>
+      <circle cx="76" cy="54" r="14" fill="#fff"/>
+      <g class="pupila">
+        <circle cx="46" cy="55" r="7" fill="#1e1b4b"/>
+        <circle cx="74" cy="55" r="7" fill="#1e1b4b"/>
+        <circle cx="48" cy="52" r="2.5" fill="#fff"/>
+        <circle cx="76" cy="52" r="2.5" fill="#fff"/>
+      </g>
+    </g>
+    <g class="olhos-felizes" stroke="#1e1b4b" stroke-width="4" fill="none" stroke-linecap="round">
+      <path d="M34 56 Q44 44 54 56"/>
+      <path d="M66 56 Q76 44 86 56"/>
+    </g>
+    <g class="sobrancelhas" stroke="#4c1d95" stroke-width="3.5" stroke-linecap="round">
+      <path d="M33 38 L53 42"/>
+      <path d="M87 38 L67 42"/>
+    </g>
+    <path d="M54 64 L66 64 L60 74 Z" fill="#f59e0b"/>
+    <ellipse cx="30" cy="70" rx="6" ry="3.5" fill="#f9a8d4" opacity=".8"/>
+    <ellipse cx="90" cy="70" rx="6" ry="3.5" fill="#f9a8d4" opacity=".8"/>
+    <path class="lagrima" d="M36 66 q-4 7 0 10 q4 -3 0 -10 Z" fill="#60a5fa"/>
+    <path d="M28 26 L60 12 L92 26 L60 38 Z" fill="#1e1b4b"/>
+    <rect x="46" y="28" width="28" height="9" rx="2" fill="#1e1b4b"/>
+    <path d="M92 26 L94 44" stroke="#f59e0b" stroke-width="2"/>
+    <circle cx="94" cy="46" r="3.5" fill="#f59e0b"/>
+  </svg>
+</template>
+
+<main id="app">
+  <!-- ========== TELA INICIAL ========== -->
+  <section id="tela-inicio" class="screen on" aria-labelledby="titulo-inicio">
+    <div class="card">
+      <div class="mascote-row">
+        <div class="slot-coruja"></div>
+        <div class="balao" aria-live="polite">Olá! Eu sou a Doutora Coruja 🦉. Vou te acompanhar no julgamento de casos reais de crimes contra a pessoa!</div>
+      </div>
+      <h1 id="titulo-inicio">Tribunal da Coruja</h1>
+      <p class="muted">RPG de casos práticos — Código Penal, arts. 121 a 148 (Crimes contra a Pessoa).</p>
+      <ul class="regras">
+        <li>Você é o(a) juiz(a): leia o caso e escolha a classificação jurídica correta.</li>
+        <li>Cada acerto vale <b>100 pontos</b> + bônus de combo (acertos seguidos).</li>
+        <li>Você tem <b>3 vidas</b> ❤️. Cada erro custa uma.</li>
+        <li>Travou? Peça uma dica à Coruja (custa 50 pontos).</li>
+      </ul>
+      <ul class="chips" aria-label="Temas cobertos">
+        <li>Homicídio</li><li>Feminicídio</li><li>Infanticídio</li><li>Aborto</li><li>Lesão corporal</li>
+        <li>Omissão de socorro</li><li>Maus-tratos</li><li>Rixa</li><li>Crimes contra a honra</li><li>Liberdade individual</li>
+      </ul>
+      <div class="stats">
+        <div><b id="ini-casos">10</b><span class="muted">casos por partida</span></div>
+        <div><b>3</b><span class="muted">vidas</span></div>
+        <div><b id="ini-recorde">0</b><span class="muted">seu recorde</span></div>
+      </div>
+      <div class="acoes">
+        <button class="btn" id="btn-comecar">⚖️ Abrir a sessão</button>
+        <button class="btn sec" id="btn-teoria">📚 Estudar a teoria antes</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TELA DE TEORIA ========== -->
+  <section id="tela-teoria" class="screen" aria-labelledby="titulo-teoria">
+    <div class="card">
+      <div class="mascote-row">
+        <div class="slot-coruja"></div>
+        <div class="balao" aria-live="polite">Antes de julgar, vamos estudar! Toque em cada artigo para abrir o resumo. 📖</div>
+      </div>
+      <h1 id="titulo-teoria" tabindex="-1">📚 Teoria: Crimes contra a Pessoa</h1>
+      <p class="muted">Resumo dos arts. 121 a 148 do Código Penal, com pena, pontos principais, exemplo prático e atualizações da lei.</p>
+      <label class="rotulo" for="teoria-busca">Buscar tema ou artigo</label>
+      <input type="search" id="teoria-busca" class="busca" placeholder="Ex.: feminicídio, 129, perdão judicial" autocomplete="off">
+      <nav class="indice" id="teoria-indice" aria-label="Capítulos"></nav>
+      <div class="acoes">
+        <button class="btn sec" id="btn-expandir">➕ Abrir todos</button>
+        <button class="btn" id="btn-teoria-jogar">⚖️ Ir para o jogo</button>
+      </div>
+      <div id="teoria-lista"></div>
+      <p class="muted" id="teoria-vazio" hidden>Nenhum tema encontrado. Tente outra palavra.</p>
+      <div class="acoes">
+        <button class="btn" id="btn-teoria-jogar2">⚖️ Já estudei, bora jogar!</button>
+        <button class="btn sec" id="btn-teoria-voltar">🏠 Tela inicial</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TELA DO JOGO ========== -->
+  <section id="tela-jogo" class="screen" aria-label="Julgamento do caso">
+    <div class="hud">
+      <span class="vidas" id="hud-vidas" aria-label="Vidas"></span>
+      <span class="combo" id="hud-combo" hidden></span>
+      <span class="pontos" id="hud-pontos">0 pts</span>
+    </div>
+    <div class="progresso" role="progressbar" aria-label="Progresso" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" id="barra">
+      <span id="barra-fill"></span>
+    </div>
+    <div class="prog-txt muted" id="prog-txt">Caso 1 de 10</div>
+
+    <div class="card">
+      <div class="mascote-row">
+        <div class="slot-coruja"></div>
+        <div class="balao" aria-live="polite"></div>
+      </div>
+      <span class="tag" id="caso-tema"></span>
+      <h2 class="caso-titulo" id="caso-titulo" tabindex="-1"></h2>
+      <p class="caso-texto" id="caso-texto"></p>
+      <p class="pergunta" id="caso-pergunta"></p>
+      <div class="opcoes" id="opcoes"></div>
+
+      <div class="feedback" id="feedback" hidden aria-live="polite">
+        <h3 id="fb-titulo"></h3>
+        <span class="artigo" id="fb-artigo"></span>
+        <p id="fb-texto"></p>
+      </div>
+
+      <div class="rodape-caso">
+        <button class="btn sec" id="btn-dica">💡 Dica (−50)</button>
+        <span class="atalhos muted">Atalhos: teclas 1–4 escolhem · Enter avança</span>
+        <button class="btn" id="btn-proximo" hidden>Próximo caso ➜</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ========== TELA FINAL ========== -->
+  <section id="tela-fim" class="screen" aria-labelledby="fim-titulo">
+    <div class="card">
+      <div class="mascote-row">
+        <div class="slot-coruja"></div>
+        <div class="balao" aria-live="polite"></div>
+      </div>
+      <h1 id="fim-titulo" tabindex="-1"></h1>
+      <div class="estrelas" id="fim-estrelas" role="img"></div>
+      <div class="stats">
+        <div><b id="fim-pontos">0</b><span class="muted">pontos</span></div>
+        <div><b id="fim-acertos">0/0</b><span class="muted">acertos</span></div>
+        <div><b id="fim-recorde">0</b><span class="muted">recorde</span></div>
+      </div>
+      <div id="fim-revisao-box">
+        <h2 style="font-size:1.1rem">📚 Para revisar</h2>
+        <ul class="revisao" id="fim-revisao"></ul>
+      </div>
+      <div class="acoes">
+        <button class="btn" id="btn-reiniciar">🔁 Jogar de novo</button>
+        <button class="btn sec" id="btn-fim-teoria">📚 Revisar a teoria</button>
+        <button class="btn sec" id="btn-inicio">🏠 Tela inicial</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+/* =====================================================================
+   BANCO DE CASOS
+   Para criar um caso novo, copie um bloco. A 1ª opção é SEMPRE a correta
+   (o jogo embaralha as alternativas sozinho na hora de exibir).
+   ===================================================================== */
+const CASOS = [
+  {
+    tema: "Homicídio qualificado",
+    titulo: "A piada do futebol",
+    texto: "No bar, depois do jogo, Beto faz piada com a derrota do time de Caio. Irritado só com isso, Caio pega uma faca na cozinha e mata Beto.",
+    pergunta: "Qual é a classificação correta?",
+    opcoes: ["Homicídio qualificado por motivo fútil", "Homicídio privilegiado (violenta emoção)", "Homicídio qualificado por motivo torpe", "Homicídio simples"],
+    artigo: "Art. 121, § 2º, II — reclusão de 12 a 30 anos",
+    dica: "Compare o tamanho da reação com o motivo que a causou.",
+    explicacao: "Motivo fútil é o insignificante, totalmente desproporcional ao crime. Uma piada de futebol não é a 'injusta provocação' exigida pelo privilégio do § 1º. Já o motivo torpe (inciso I) é o vil, repugnante, como matar por dinheiro."
+  },
+  {
+    tema: "Homicídio qualificado",
+    titulo: "O matador de aluguel",
+    texto: "Marta quer ficar sozinha com a empresa e oferece R$ 30 mil a Jorge para que ele mate o sócio dela. Jorge aceita, recebe o dinheiro e executa a vítima.",
+    pergunta: "Qual qualificadora incide na conduta de Jorge?",
+    opcoes: ["Mediante paga ou promessa de recompensa", "Motivo fútil", "Meio cruel", "Para assegurar a execução de outro crime"],
+    artigo: "Art. 121, § 2º, I — reclusão de 12 a 30 anos",
+    dica: "Por que Jorge matou alguém que nem conhecia?",
+    explicacao: "Matar por dinheiro é o exemplo clássico do homicídio mercenário: 'mediante paga ou promessa de recompensa', espécie de motivo torpe prevista no inciso I. A recompensa pode ser paga antes (paga) ou depois (promessa)."
+  },
+  {
+    tema: "Homicídio privilegiado",
+    titulo: "A volta para casa",
+    texto: "Antônio chega em casa e encontra o filho de 10 anos chorando, machucado: o vizinho acabara de espancá-lo e ainda ria da situação. Tomado de fúria, Antônio mata o vizinho na mesma hora.",
+    pergunta: "Como fica a situação de Antônio?",
+    opcoes: ["Homicídio privilegiado: o juiz pode reduzir a pena de 1/6 a 1/3", "Legítima defesa: não há crime", "Homicídio qualificado por motivo fútil", "Homicídio culposo"],
+    artigo: "Art. 121, § 1º",
+    dica: "A agressão contra o filho já tinha acabado. Mas o que o ato do vizinho provocou em Antônio?",
+    explicacao: "Há domínio de violenta emoção logo em seguida a injusta provocação da vítima: é o homicídio privilegiado, com redução de 1/6 a 1/3. Não é legítima defesa porque a agressão já havia terminado (não era atual nem iminente)."
+  },
+  {
+    tema: "Homicídio culposo",
+    titulo: "O choque no chuveiro",
+    texto: "Lucas, eletricista profissional, instala um chuveiro sem desligar o disjuntor nem fazer o aterramento, contrariando as normas técnicas. No dia seguinte, um morador morre eletrocutado no banho.",
+    pergunta: "Qual é o enquadramento de Lucas?",
+    opcoes: ["Homicídio culposo com aumento de 1/3 (inobservância de regra técnica da profissão)", "Homicídio culposo simples, sem aumento", "Lesão corporal seguida de morte", "Homicídio doloso com dolo eventual"],
+    artigo: "Art. 121, §§ 3º e 4º — detenção de 1 a 3 anos, + 1/3",
+    dica: "Lucas não quis matar ninguém, mas ele é profissional da área...",
+    explicacao: "Houve culpa (imperícia/negligência), não dolo. Como o erro foi de inobservância de regra técnica de profissão, arte ou ofício, a pena do homicídio culposo aumenta de 1/3. Não é lesão seguida de morte, pois esta exige dolo de lesionar."
+  },
+  {
+    tema: "Feminicídio",
+    titulo: "O fim do relacionamento",
+    texto: "Após anos de agressões domésticas, Ana decide se separar de Rafael. Inconformado com o término, ele a mata dentro da casa onde moravam.",
+    pergunta: "Qual crime Rafael cometeu?",
+    opcoes: ["Feminicídio", "Homicídio privilegiado por violenta emoção", "Homicídio simples", "Lesão corporal seguida de morte"],
+    artigo: "Art. 121, § 2º, VI e § 2º-A, I (texto estudado) · hoje art. 121-A (Lei 14.994/2024)",
+    dica: "Observe o contexto em que o crime aconteceu e quem era a vítima.",
+    explicacao: "Matar mulher por razões da condição de sexo feminino, em contexto de violência doméstica e familiar, é feminicídio. Ciúme ou inconformismo com o término NÃO caracterizam privilégio. Atenção: a Lei 14.994/2024 transformou o feminicídio em crime autônomo (art. 121-A), com pena de 20 a 40 anos."
+  },
+  {
+    tema: "Infanticídio",
+    titulo: "Logo após o parto",
+    texto: "Joana dá à luz sozinha em casa. Minutos depois, ainda sob a influência do estado puerperal (comprovado por perícia), ela asfixia o recém-nascido, que havia nascido com vida.",
+    pergunta: "Qual crime Joana praticou?",
+    opcoes: ["Infanticídio", "Homicídio qualificado por asfixia", "Aborto provocado pela gestante", "Abandono de recém-nascido"],
+    artigo: "Art. 123 — detenção de 2 a 6 anos",
+    dica: "Três elementos importam aqui: quem matou, quem morreu e quando.",
+    explicacao: "Matar o próprio filho, durante o parto ou logo após, sob a influência do estado puerperal, é infanticídio, crime com pena bem menor que o homicídio. Não é aborto porque o bebê já tinha nascido com vida."
+  },
+  {
+    tema: "Lesão corporal",
+    titulo: "O soco na saída da festa",
+    texto: "Durante uma discussão, Pedro dá um único soco em Diego só para machucá-lo. Diego cai, bate a cabeça no meio-fio e morre. Pedro não queria nem assumiu o risco da morte.",
+    pergunta: "Qual crime Pedro cometeu?",
+    opcoes: ["Lesão corporal seguida de morte", "Homicídio doloso", "Homicídio culposo", "Lesão corporal grave"],
+    artigo: "Art. 129, § 3º — reclusão de 4 a 12 anos",
+    dica: "Há dolo no começo (o soco) e culpa no final (a morte). Que nome tem esse tipo de crime?",
+    explicacao: "É o clássico crime preterdoloso: dolo na lesão e culpa no resultado morte, quando as circunstâncias mostram que o agente não quis nem assumiu o risco de matar. Por isso a pena (4 a 12 anos) fica entre a do homicídio culposo e a do doloso."
+  },
+  {
+    tema: "Lesão corporal",
+    titulo: "O ataque com ácido",
+    texto: "Por vingança, Léo joga ácido no rosto de Caio. Caio sobrevive, mas fica com cicatrizes permanentes e bem visíveis na face.",
+    pergunta: "Como se classifica a lesão?",
+    opcoes: ["Lesão corporal gravíssima (deformidade permanente)", "Lesão corporal grave (incapacidade por mais de 30 dias)", "Lesão corporal leve", "Lesão corporal culposa"],
+    artigo: "Art. 129, § 2º, IV — reclusão de 2 a 8 anos",
+    dica: "O dano estético não vai desaparecer com o tempo.",
+    explicacao: "A doutrina chama de 'gravíssimas' as lesões do § 2º: incapacidade permanente para o trabalho, enfermidade incurável, perda ou inutilização de membro, sentido ou função, deformidade permanente e aborto. As do § 1º (ex.: incapacidade por mais de 30 dias, perigo de vida) são as 'graves'."
+  },
+  {
+    tema: "Aborto",
+    titulo: "Gravidez após violência",
+    texto: "Clara engravida em decorrência de um estupro. Com o consentimento dela, um médico realiza o aborto em hospital. Não houve autorização judicial.",
+    pergunta: "O médico responde por crime?",
+    opcoes: ["Não: é aborto legal (humanitário), sem punição", "Sim: aborto com consentimento da gestante (art. 126)", "Sim, porque faltou autorização judicial", "Sim: aborto sem consentimento (art. 125)"],
+    artigo: "Art. 128, II",
+    dica: "O art. 128 traz duas hipóteses em que o aborto feito por médico não é punido.",
+    explicacao: "Não se pune o aborto praticado por médico quando a gravidez resulta de estupro e há consentimento da gestante (ou do representante legal, se incapaz). A lei NÃO exige autorização judicial. A outra hipótese é o aborto necessário (inciso I), quando não há outro meio de salvar a vida da gestante."
+  },
+  {
+    tema: "Periclitação da vida",
+    titulo: "O ciclista na estrada",
+    texto: "Voltando do trabalho, Paula vê um ciclista caído e desacordado no acostamento. Poderia ligar para o SAMU sem qualquer risco, mas segue viagem sem fazer nada.",
+    pergunta: "Paula cometeu algum crime?",
+    opcoes: ["Sim: omissão de socorro", "Não: ela não causou o acidente", "Sim: abandono de incapaz", "Sim: homicídio culposo"],
+    artigo: "Art. 135 — detenção de 1 a 6 meses, ou multa",
+    dica: "Pedir ajuda à autoridade pública também conta como prestar socorro.",
+    explicacao: "Qualquer pessoa que possa ajudar sem risco pessoal deve prestar assistência a pessoa ferida ou em grave perigo, ou ao menos pedir socorro à autoridade. Se da omissão resulta lesão grave, a pena aumenta de metade; se resulta morte, é triplicada. Abandono de incapaz exige que a vítima esteja sob o cuidado do agente."
+  },
+  {
+    tema: "Periclitação da vida",
+    titulo: "O castigo da babá",
+    texto: "A babá de Mel, de 8 anos, deixa a criança dois dias sem comer como 'castigo para aprender a obedecer' depois de uma birra.",
+    pergunta: "Qual crime a babá praticou?",
+    opcoes: ["Maus-tratos, com aumento de 1/3 (vítima menor de 14 anos)", "Abandono de incapaz", "Constrangimento ilegal", "Lesão corporal leve"],
+    artigo: "Art. 136, caput e § 3º — detenção de 2 meses a 1 ano, ou multa, + 1/3",
+    dica: "A criança estava sob a guarda da babá, e a desculpa foi 'educar'.",
+    explicacao: "Maus-tratos é expor a perigo a vida ou saúde de pessoa sob sua autoridade, guarda ou vigilância, para fim de educação, ensino, tratamento ou custódia, inclusive privando-a de alimentação. Contra menor de 14 anos, a pena aumenta de 1/3. No abandono (art. 133) o agente deixa a vítima à própria sorte."
+  },
+  {
+    tema: "Rixa",
+    titulo: "Confusão generalizada",
+    texto: "Na saída de um show, oito pessoas entram numa briga generalizada, todos contra todos, sem lados definidos. Ninguém fica gravemente ferido. Um rapaz entra só para separar os brigões.",
+    pergunta: "Qual crime os oito brigões praticaram?",
+    opcoes: ["Rixa (o rapaz que separava não responde)", "Lesão corporal leve em concurso de pessoas", "Rixa, inclusive o rapaz que tentou separar", "Nenhum, por ter sido briga recíproca"],
+    artigo: "Art. 137 — detenção de 15 dias a 2 meses, ou multa",
+    dica: "Leia com atenção a ressalva no próprio texto do art. 137.",
+    explicacao: "Rixa é a briga tumultuada entre três ou mais pessoas com agressões recíprocas. A lei ressalva quem participa 'para separar os contendores'. Se houver morte ou lesão grave, todos respondem pela rixa qualificada (detenção de 6 meses a 2 anos) só por terem participado."
+  },
+  {
+    tema: "Crimes contra a honra",
+    titulo: "A mensagem no grupo",
+    texto: "Sabendo que é mentira, Marcos escreve no grupo de WhatsApp da empresa, com 40 colegas, que Bia 'furtou dinheiro do caixa semana passada'.",
+    pergunta: "Qual crime contra a honra Marcos praticou?",
+    opcoes: ["Calúnia", "Difamação", "Injúria", "Ameaça"],
+    artigo: "Art. 138 + art. 141, III (aumento de 1/3)",
+    dica: "Furto é um fato definido como crime. E a acusação era falsa.",
+    explicacao: "Calúnia é imputar falsamente a alguém fato definido como crime. Como foi feita por meio que facilita a divulgação (grupo com dezenas de pessoas), a pena aumenta de 1/3 (art. 141, III). Na calúnia, em regra, admite-se a exceção da verdade."
+  },
+  {
+    tema: "Crimes contra a honra",
+    titulo: "A reunião de condomínio",
+    texto: "Na assembleia do prédio, diante de vários moradores, Sílvia conta que o vizinho Gustavo 'chega bêbado toda sexta e faz escândalo no corredor'. A história é verdadeira.",
+    pergunta: "Como se classifica a conduta de Sílvia?",
+    opcoes: ["Difamação (mesmo sendo verdade)", "Calúnia", "Injúria", "Nenhum crime, pois o fato é verdadeiro"],
+    artigo: "Art. 139 + art. 141, III",
+    dica: "Chegar bêbado em casa não é crime, mas o relato mancha a reputação dele perante os outros.",
+    explicacao: "Difamação é imputar fato ofensivo à reputação (honra objetiva), seja verdadeiro ou falso. A exceção da verdade só é admitida se o ofendido for funcionário público e a ofensa disser respeito às suas funções, o que não é o caso de Gustavo."
+  },
+  {
+    tema: "Crimes contra a honra",
+    titulo: "Fúria no trânsito",
+    texto: "Depois de uma fechada no trânsito, Fábio abaixa o vidro e grita para a outra motorista: 'Sua incompetente, idiota!'.",
+    pergunta: "Qual crime Fábio cometeu?",
+    opcoes: ["Injúria", "Difamação", "Calúnia", "Ameaça"],
+    artigo: "Art. 140 — detenção de 1 a 6 meses, ou multa",
+    dica: "Ele não contou nenhum fato; apenas xingou.",
+    explicacao: "Injúria é ofender a dignidade ou o decoro (honra subjetiva) com xingamentos e qualidades negativas, sem imputar fato. Nos crimes contra a honra, em regra, a ação penal é privada: procede-se mediante queixa (art. 145). Obs.: a injúria racial hoje está na Lei 7.716/89 (art. 2º-A)."
+  },
+  {
+    tema: "Liberdade individual",
+    titulo: "A vaga do estacionamento",
+    texto: "Hugo perde uma vaga de estacionamento para Tiago e diz, com seriedade: 'Amanhã eu vou atrás de você e quebro suas pernas'. Tiago fica apavorado.",
+    pergunta: "Qual crime Hugo praticou?",
+    opcoes: ["Ameaça", "Constrangimento ilegal", "Injúria", "Tentativa de lesão corporal"],
+    artigo: "Art. 147 — detenção de 1 a 6 meses, ou multa",
+    dica: "Ele não exigiu nenhuma conduta de Tiago; só prometeu um mal.",
+    explicacao: "Ameaça é prometer, por palavra, escrito, gesto ou meio simbólico, causar mal injusto e grave. Se Hugo exigisse que Tiago fizesse ou deixasse de fazer algo, seria constrangimento ilegal (art. 146). Em regra, a ameaça só se processa mediante representação da vítima."
+  },
+  {
+    tema: "Liberdade individual",
+    titulo: "Trancado em casa",
+    texto: "Para ficar com a aposentadoria do pai, de 72 anos, Renato o mantém trancado no quarto durante 20 dias, impedindo-o de sair ou de receber visitas.",
+    pergunta: "Qual é o enquadramento?",
+    opcoes: ["Sequestro/cárcere privado qualificado", "Sequestro/cárcere privado simples", "Constrangimento ilegal", "Maus-tratos"],
+    artigo: "Art. 148, § 1º, I e III — reclusão de 2 a 5 anos",
+    dica: "Confira quem é a vítima e quanto tempo durou a privação.",
+    explicacao: "Privar alguém de liberdade é sequestro ou cárcere privado (art. 148). A forma é qualificada (2 a 5 anos) se a vítima é ascendente ou maior de 60 anos (inciso I) ou se a privação dura mais de 15 dias (inciso III). Aqui, as duas situações estão presentes."
+  }
+];
+
+/* =====================================================================
+   MATERIAL TEÓRICO (tela "Estudar a teoria")
+   Cada item: art, nome, pena, resumo, pontos[], exemplo, atualizacao (opcional)
+   ===================================================================== */
+const TEORIA = [
+  { capitulo: "Cap. I · Crimes contra a vida", itens: [
+    { art: "Art. 121, caput", nome: "Homicídio simples", pena: "Reclusão de 6 a 20 anos",
+      resumo: "Matar alguém. Protege a vida humana extrauterina, a partir do início do parto.",
+      pontos: ["Crime comum: qualquer pessoa pode praticar contra qualquer pessoa.", "Crime material: só se consuma com a morte (morte encefálica). Admite tentativa.", "Todo homicídio doloso (tentado ou consumado) é julgado pelo Tribunal do Júri (CF, art. 5º, XXXVIII).", "Antes do início do parto não há homicídio, e sim aborto."],
+      exemplo: "Durante uma discussão sobre dívida, João atira em Pedro, que morre: homicídio simples, se não houver qualificadora." },
+    { art: "Art. 121, § 1º", nome: "Homicídio privilegiado", pena: "Redução de 1/6 a 1/3",
+      resumo: "Matar impelido por relevante valor social ou moral, ou sob o domínio de violenta emoção, logo em seguida a injusta provocação da vítima.",
+      pontos: ["Valor social: interesse da coletividade (ex.: matar um traidor da pátria).", "Valor moral: interesse individual aprovado pela moral média (ex.: eutanásia por compaixão).", "Violenta emoção exige três requisitos: domínio (não mera influência), injusta provocação da vítima e reação imediata.", "Se for só 'influência' de violenta emoção, cabe apenas a atenuante genérica do art. 65, III, 'c'.", "É possível o homicídio qualificado-privilegiado se a qualificadora for objetiva (meio ou modo, incisos III e IV). Nesse caso, não é hediondo."],
+      exemplo: "O pai encontra o vizinho que acabou de espancar seu filho e o mata ali mesmo, tomado de fúria." },
+    { art: "Art. 121, § 2º, I a V", nome: "Homicídio qualificado", pena: "Reclusão de 12 a 30 anos (crime hediondo)",
+      resumo: "Qualificadoras ligadas ao motivo, ao meio, ao modo de execução ou à conexão com outro crime.",
+      pontos: ["I. Paga ou promessa de recompensa (homicídio mercenário) ou outro motivo torpe: vil, repugnante (ex.: matar para herdar).", "II. Motivo fútil: insignificante, desproporcional (ex.: briga de trânsito por uma buzinada). Ausência de motivo, para parte da doutrina, não é motivo fútil.", "III. Meio: veneno (só qualifica se usado às escondidas), fogo, explosivo, asfixia, tortura, meio insidioso (disfarçado) ou cruel (sofrimento desnecessário), ou que gere perigo comum.", "IV. Modo: traição, emboscada (tocaia), dissimulação (disfarce) ou recurso que dificulte a defesa (ex.: atacar a vítima dormindo).", "V. Conexão: matar para assegurar a execução, ocultação, impunidade ou vantagem de outro crime (ex.: matar a testemunha).", "Qualificadoras subjetivas (motivo): I, II e V. Objetivas (meio e modo): III e IV."],
+      exemplo: "Matar a testemunha que viu o roubo para não ser reconhecido: qualificadora do inciso V (impunidade).",
+      atualizacao: "Leis recentes incluíram os incisos VIII (arma de uso restrito ou proibido) e IX (vítima menor de 14 anos, Lei 14.344/2022)." },
+    { art: "Art. 121, § 2º, VI, § 2º-A e § 7º", nome: "Feminicídio", pena: "Reclusão de 12 a 30 anos (no texto estudado)",
+      resumo: "Matar mulher por razões da condição de sexo feminino, ou seja, em contexto de violência doméstica e familiar ou de menosprezo/discriminação à condição de mulher.",
+      pontos: ["Não basta a vítima ser mulher: é preciso a razão de gênero (ex.: mulher morta num assalto comum não é vítima de feminicídio).", "Para o STJ, a qualificadora é objetiva e pode coexistir com motivo torpe ou fútil.", "Aumento de 1/3 até a metade (§ 7º): durante a gestação ou nos 3 meses após o parto; vítima menor de 14, maior de 60 ou com deficiência; ou na presença de descendente ou ascendente da vítima.", "Ciúme ou inconformismo com o fim do relacionamento não caracterizam privilégio."],
+      exemplo: "O ex-marido, inconformado com a separação, mata a ex-esposa na frente dos filhos: feminicídio com aumento do § 7º, III.",
+      atualizacao: "A Lei 14.994/2024 revogou o inciso VI e transformou o feminicídio em crime autônomo (art. 121-A), com pena de 20 a 40 anos. Confira qual versão seu edital cobra." },
+    { art: "Art. 121, § 2º, VII", nome: "Homicídio funcional", pena: "Reclusão de 12 a 30 anos (crime hediondo)",
+      resumo: "Matar autoridade ou agente de segurança (arts. 142 e 144 da CF: Forças Armadas, polícias, guardas), do sistema prisional ou da Força Nacional, no exercício da função ou em decorrência dela.",
+      pontos: ["Também protege cônjuge, companheiro ou parente consanguíneo até o 3º grau, em razão dessa condição.", "Exige vínculo com a função: matar um policial por briga pessoal de vizinhos não qualifica por este inciso.", "Vale também para o agente que está de folga, se o crime for por causa da função."],
+      exemplo: "Traficante mata a filha de um delegado como vingança pela prisão do chefe da quadrilha." },
+    { art: "Art. 121, §§ 3º, 4º e 5º", nome: "Homicídio culposo e perdão judicial", pena: "Detenção de 1 a 3 anos (+1/3 nos casos do § 4º)",
+      resumo: "Matar sem intenção, por imprudência (agir sem cautela), negligência (deixar de agir com cuidado) ou imperícia (falta de aptidão técnica).",
+      pontos: ["Aumento de 1/3 no culposo: inobservância de regra técnica de profissão, deixar de prestar socorro imediato, não procurar diminuir as consequências ou fugir para evitar o flagrante.", "Aumento de 1/3 no doloso (§ 4º, parte final): vítima menor de 14 ou maior de 60 anos.", "Perdão judicial (§ 5º): só no culposo, quando as consequências atingem o próprio agente de forma tão grave que a pena se torna desnecessária. A sentença extingue a punibilidade e não gera reincidência (Súmula 18 do STJ).", "No trânsito, o homicídio culposo na direção de veículo segue o art. 302 do CTB."],
+      exemplo: "O pai esquece o filho no carro trancado e a criança morre: homicídio culposo, com possível perdão judicial." },
+    { art: "Art. 121, § 6º", nome: "Milícia e grupo de extermínio", pena: "Aumento de 1/3 até a metade",
+      resumo: "Aumento para o homicídio praticado por milícia privada, sob pretexto de prestar serviço de segurança, ou por grupo de extermínio.",
+      pontos: ["Homicídio praticado em atividade típica de grupo de extermínio, ainda que por um só agente, é hediondo (Lei 8.072/90).", "A constituição de milícia privada é crime autônomo (art. 288-A do CP)."],
+      exemplo: "Grupo armado que 'vende segurança' num bairro executa morador que se recusou a pagar." },
+    { art: "Art. 122", nome: "Induzimento, instigação ou auxílio a suicídio", pena: "Reclusão de 2 a 6 anos (morte) ou 1 a 3 anos (lesão grave), no texto estudado",
+      resumo: "Participar do suicídio alheio de forma moral (induzir ou instigar) ou material (auxiliar).",
+      pontos: ["Induzir: fazer nascer a ideia. Instigar: reforçar uma ideia que já existia. Auxiliar: ajuda material secundária (ex.: emprestar a arma).", "O auxílio não pode ser o ato executório: quem aperta o gatilho a pedido da vítima comete homicídio.", "Pena duplicada se por motivo egoístico (ex.: herança) ou se a vítima é menor ou tem a capacidade de resistência diminuída.", "Se a vítima não tem nenhuma capacidade de resistir ou de entender, o crime é homicídio (autoria mediata)."],
+      exemplo: "Para ficar com a herança, Paulo convence o irmão deprimido a se matar e lhe entrega os comprimidos: art. 122 com pena duplicada.",
+      atualizacao: "A Lei 13.968/2019 reescreveu o artigo: passou a incluir a automutilação, a pena-base virou 6 meses a 2 anos (crime formal) e surgiram qualificadoras para lesão grave (1 a 3 anos) e morte (2 a 6 anos), além de aumentos para crimes pela internet." },
+    { art: "Art. 123", nome: "Infanticídio", pena: "Detenção de 2 a 6 anos",
+      resumo: "Matar, sob a influência do estado puerperal, o próprio filho, durante o parto ou logo após.",
+      pontos: ["Crime próprio: só a mãe pode ser autora.", "Requisitos cumulativos: (1) próprio filho, (2) durante o parto ou logo após, (3) sob influência do estado puerperal. Faltando um, é homicídio.", "Estado puerperal: alteração física e psíquica que a mulher sofre por causa do parto.", "Quem ajuda a mãe também responde por infanticídio, porque as elementares se comunicam (art. 30 do CP), segundo a doutrina majoritária.", "Se a mãe mata outro bebê achando que é o seu, responde por infanticídio (erro sobre a pessoa, art. 20, § 3º)."],
+      exemplo: "Minutos após dar à luz, em surto puerperal comprovado por perícia, a mãe asfixia o recém-nascido." },
+    { art: "Arts. 124, 125 e 126", nome: "Aborto", pena: "124: detenção de 1 a 3 anos · 125: reclusão de 3 a 10 · 126: reclusão de 1 a 4",
+      resumo: "Interromper a gravidez com a morte do feto. O enquadramento muda conforme quem provoca e se houve consentimento.",
+      pontos: ["Art. 124: a gestante provoca o aborto em si mesma (autoaborto) ou consente que outro o provoque.", "Art. 125: terceiro provoca sem o consentimento da gestante. É a forma mais grave.", "Art. 126: terceiro provoca com o consentimento. Exceção à teoria monista: a gestante responde pelo art. 124 e o terceiro pelo art. 126.", "Parágrafo único do art. 126: aplica-se a pena do art. 125 se a gestante tem 14 anos ou menos, é alienada ou débil mental, ou se o consentimento foi obtido por fraude, grave ameaça ou violência.", "Só existe na forma dolosa. Aborto culposo não é crime (quem empurra gestante sem querer o aborto responde por lesão)."],
+      exemplo: "Namorado coloca remédio abortivo escondido na comida da gestante: art. 125 (sem consentimento)." },
+    { art: "Arts. 127 e 128", nome: "Aborto qualificado e aborto legal", pena: "127: +1/3 (lesão grave) ou pena em dobro (morte da gestante)",
+      resumo: "O art. 127 agrava as penas dos arts. 125 e 126 conforme o resultado para a gestante. O art. 128 traz as hipóteses em que o aborto feito por médico não é punido.",
+      pontos: ["O art. 127 não se aplica ao art. 124: ninguém é punido por ferir a si mesmo.", "Aborto necessário (128, I): não há outro meio de salvar a vida da gestante. Dispensa o consentimento.", "Aborto humanitário ou sentimental (128, II): gravidez resultante de estupro, com consentimento da gestante ou do representante legal. Não exige autorização judicial nem boletim de ocorrência.", "ADPF 54 (STF, 2012): a interrupção da gravidez de feto anencéfalo não é crime."],
+      exemplo: "Gestante com gravidez ectópica e risco de morte: o médico interrompe a gestação sem cometer crime (aborto necessário)." }
+  ]},
+  { capitulo: "Cap. II · Lesões corporais", itens: [
+    { art: "Art. 129, caput", nome: "Lesão corporal leve", pena: "Detenção de 3 meses a 1 ano",
+      resumo: "Ofender a integridade corporal ou a saúde (física ou mental) de outra pessoa.",
+      pontos: ["Abrange cortes, hematomas, fraturas simples e também abalos à saúde mental.", "É leve por exclusão: tudo que não se enquadra nos §§ 1º, 2º e 3º.", "Ação penal pública condicionada à representação (Lei 9.099/95, art. 88), na lesão leve e na culposa.", "Exceção: na violência doméstica contra a mulher, a ação é pública incondicionada (Súmula 542 do STJ).", "Empurrão ou tapa sem deixar lesão é vias de fato (contravenção, art. 21 da LCP), não lesão corporal."],
+      exemplo: "Um soco que deixa o olho roxo, sem outras consequências: lesão leve." },
+    { art: "Art. 129, §§ 1º e 2º", nome: "Lesão grave e gravíssima", pena: "§ 1º: reclusão de 1 a 5 anos · § 2º: reclusão de 2 a 8 anos",
+      resumo: "O § 1º traz as lesões graves e o § 2º as que a doutrina chama de gravíssimas.",
+      pontos: ["Grave (§ 1º): incapacidade para as ocupações habituais por mais de 30 dias (exige exame complementar, CPP art. 168, § 2º); perigo de vida (risco concreto, atestado por perícia); debilidade permanente de membro, sentido ou função; aceleração de parto (bebê nasce vivo).", "Gravíssima (§ 2º): incapacidade permanente para o trabalho; enfermidade incurável; perda ou inutilização de membro, sentido ou função; deformidade permanente; aborto.", "Debilidade (§ 1º) é enfraquecimento. Perda (§ 2º) é eliminação total (ex.: perder um rim é debilidade da função renal; perder os dois olhos é perda da visão).", "Aceleração de parto e aborto exigem que o agente saiba da gravidez e não queira o aborto (crimes preterdolosos)."],
+      exemplo: "Jogar ácido no rosto e deixar cicatriz visível e permanente: gravíssima (deformidade permanente)." },
+    { art: "Art. 129, § 3º", nome: "Lesão corporal seguida de morte", pena: "Reclusão de 4 a 12 anos",
+      resumo: "O agente quer apenas ferir, mas a vítima morre, e as circunstâncias mostram que ele não quis nem assumiu o risco da morte.",
+      pontos: ["Crime preterdoloso: dolo na lesão (antecedente) e culpa na morte (consequente).", "Se houver dolo, ainda que eventual, quanto à morte, o crime é homicídio.", "Não vai a Júri: é julgado pelo juiz singular, porque não é crime doloso contra a vida.", "Não admite tentativa (o resultado mais grave é culposo)."],
+      exemplo: "Um único soco faz a vítima cair, bater a cabeça no meio-fio e morrer." },
+    { art: "Art. 129, §§ 4º a 8º", nome: "Privilégio, substituição e lesão culposa", pena: "Lesão culposa: detenção de 2 meses a 1 ano",
+      resumo: "Regras que reduzem ou aumentam a pena da lesão, espelhando o homicídio.",
+      pontos: ["§ 4º: lesão privilegiada (mesmas hipóteses do homicídio privilegiado), com redução de 1/6 a 1/3.", "§ 5º: se as lesões não forem graves, o juiz pode trocar a detenção por multa quando houver privilégio ou lesões recíprocas.", "§ 6º: lesão culposa. Não há graduação (leve, grave ou gravíssima tem a mesma pena). No trânsito, aplica-se o art. 303 do CTB.", "§ 7º: aumento de 1/3 nas hipóteses do art. 121, §§ 4º e 6º (regra técnica, omissão de socorro, vítima menor de 14 ou maior de 60, milícia).", "§ 8º: perdão judicial na lesão culposa, como no art. 121, § 5º."],
+      exemplo: "Duas pessoas trocam socos e ambas ficam com lesões leves: o juiz pode aplicar só multa (lesões recíprocas)." },
+    { art: "Art. 129, §§ 9º a 12", nome: "Violência doméstica e vítimas especiais", pena: "§ 9º: detenção de 3 meses a 3 anos",
+      resumo: "Lesão contra ascendente, descendente, irmão, cônjuge, companheiro, quem conviva ou tenha convivido, ou prevalecendo-se das relações domésticas, de coabitação ou hospitalidade.",
+      pontos: ["O § 9º protege qualquer pessoa (homem ou mulher) nesse contexto. A Lei Maria da Penha (11.340/06) traz medidas extras quando a vítima é mulher.", "§ 10: lesões dos §§ 1º a 3º nesse contexto têm aumento de 1/3.", "§ 11: aumento de 1/3 se, no § 9º, a vítima tiver deficiência.", "§ 12: lesão contra agentes de segurança ou do sistema prisional (ou seus familiares), em razão da função: aumento de 1/3 a 2/3."],
+      exemplo: "Filho adulto agride a mãe com quem mora, deixando hematomas: art. 129, § 9º.",
+      atualizacao: "Leis recentes criaram o § 13 (lesão contra mulher por razões da condição de sexo feminino), com pena hoje de reclusão de 2 a 5 anos (Lei 14.994/2024)." }
+  ]},
+  { capitulo: "Cap. III · Periclitação da vida e da saúde", itens: [
+    { art: "Art. 130", nome: "Perigo de contágio venéreo", pena: "Detenção de 3 meses a 1 ano, ou multa · § 1º: reclusão de 1 a 4 anos e multa",
+      resumo: "Expor alguém, por relação sexual ou ato libidinoso, a contágio de doença venérea de que sabe ou deve saber que está contaminado.",
+      pontos: ["Crime de perigo: consuma-se com a exposição, mesmo que não haja contágio.", "'Sabe' indica dolo direto; 'deve saber', dolo eventual.", "§ 1º: se a intenção é transmitir a doença, a pena é maior (dolo de dano).", "§ 2º: ação penal pública condicionada à representação.", "Transmitir HIV dolosamente: para o STJ, é lesão corporal gravíssima (enfermidade incurável), e não este crime."],
+      exemplo: "Sabendo que tem sífilis, o agente mantém relação sexual sem preservativo e sem avisar a parceira." },
+    { art: "Art. 131", nome: "Perigo de contágio de moléstia grave", pena: "Reclusão de 1 a 4 anos, e multa",
+      resumo: "Praticar, com o fim de transmitir moléstia grave de que está contaminado, ato capaz de produzir o contágio.",
+      pontos: ["Exige dolo específico: a finalidade de transmitir.", "Crime formal: consuma-se com a prática do ato, mesmo que não haja contágio.", "Qualquer meio serve (beijo, aperto de mão, seringa, alimento), não só relação sexual.", "A moléstia não precisa ser venérea, mas precisa ser grave (ex.: tuberculose)."],
+      exemplo: "Paciente com tuberculose ativa tosse de propósito no rosto do vizinho para contaminá-lo." },
+    { art: "Art. 132", nome: "Perigo para a vida ou saúde de outrem", pena: "Detenção de 3 meses a 1 ano, se o fato não constitui crime mais grave",
+      resumo: "Expor a vida ou a saúde de outra pessoa a perigo direto e iminente.",
+      pontos: ["Crime expressamente subsidiário: só se aplica se não houver crime mais grave.", "Perigo concreto: precisa ser demonstrado, contra pessoa(s) determinada(s).", "Parágrafo único: aumento de 1/6 a 1/3 se o perigo decorre do transporte irregular de pessoas para prestação de serviços (ex.: boias-frias na carroceria)."],
+      exemplo: "Atirar perto dos pés de alguém, de propósito, só para assustar, sem intenção de ferir." },
+    { art: "Art. 133", nome: "Abandono de incapaz", pena: "Detenção de 6 meses a 3 anos · lesão grave: 1 a 5 · morte: 4 a 12",
+      resumo: "Abandonar pessoa que está sob seu cuidado, guarda, vigilância ou autoridade e que é incapaz de se defender dos riscos do abandono.",
+      pontos: ["Crime próprio: exige vínculo de cuidado entre agente e vítima.", "A incapacidade pode ser permanente ou momentânea (criança, idoso doente, pessoa embriagada sob seus cuidados).", "Aumento de 1/3: lugar ermo; agente ascendente, descendente, cônjuge, irmão, tutor ou curador; vítima maior de 60 anos.", "Diferença da omissão de socorro (art. 135): no abandono existe o dever específico de cuidado."],
+      exemplo: "A mãe deixa o filho de 3 anos sozinho em casa por dois dias para viajar." },
+    { art: "Art. 134", nome: "Exposição ou abandono de recém-nascido", pena: "Detenção de 6 meses a 2 anos · lesão grave: 1 a 3 · morte: 2 a 6",
+      resumo: "Expor ou abandonar recém-nascido para ocultar desonra própria.",
+      pontos: ["O que diferencia do art. 133 é a finalidade: esconder a própria desonra (ex.: gravidez fora do casamento).", "Crime próprio, em regra da mãe (a doutrina admite o pai, no caso de filho adulterino).", "Sem essa finalidade, o crime é o abandono de incapaz (art. 133)."],
+      exemplo: "Para esconder da família uma gravidez extraconjugal, a mãe deixa o bebê recém-nascido numa calçada." },
+    { art: "Art. 135", nome: "Omissão de socorro", pena: "Detenção de 1 a 6 meses, ou multa",
+      resumo: "Deixar de prestar assistência, quando possível fazê-lo sem risco pessoal, a criança abandonada ou extraviada, ou a pessoa inválida ou ferida, ao desamparo ou em grave e iminente perigo, ou não pedir o socorro da autoridade.",
+      pontos: ["Crime omissivo próprio e comum: qualquer pessoa pode cometer.", "Só existe se o socorro for possível sem risco pessoal.", "Pedir ajuda à autoridade (SAMU, polícia, bombeiros) já cumpre o dever.", "Parágrafo único: pena aumentada de metade se resulta lesão grave e triplicada se resulta morte.", "Se várias pessoas se omitem, todas respondem. Se uma socorre, as demais ficam livres."],
+      exemplo: "Motorista vê um ciclista ferido na estrada e segue viagem sem parar nem ligar para o SAMU.",
+      atualizacao: "Condutor de veículo envolvido no acidente que deixa de socorrer responde pelo art. 304 do CTB (ou pelo aumento dos arts. 302/303)." },
+    { art: "Art. 135-A", nome: "Condicionamento de atendimento emergencial", pena: "Detenção de 3 meses a 1 ano, e multa",
+      resumo: "Exigir cheque-caução, nota promissória ou qualquer garantia, ou o preenchimento prévio de formulários, como condição para o atendimento médico-hospitalar emergencial.",
+      pontos: ["Vale só para atendimento de emergência.", "Responde quem faz a exigência (recepcionista, gerente, diretor do hospital).", "Pena até o dobro se resulta lesão grave e até o triplo se resulta morte.", "Os hospitais são obrigados a afixar cartaz informando sobre este crime (Lei 12.653/2012)."],
+      exemplo: "Hospital particular exige um cheque-caução de R$ 5 mil antes de atender um paciente infartando." },
+    { art: "Art. 136", nome: "Maus-tratos", pena: "Detenção de 2 meses a 1 ano, ou multa · lesão grave: 1 a 4 · morte: 4 a 12",
+      resumo: "Expor a perigo a vida ou a saúde de pessoa sob sua autoridade, guarda ou vigilância, para fim de educação, ensino, tratamento ou custódia.",
+      pontos: ["Formas: privar de alimentação ou cuidados indispensáveis, sujeitar a trabalho excessivo ou inadequado, ou abusar dos meios de correção ou disciplina.", "Crime próprio: exige relação de subordinação (pais, professores, babás, enfermeiros, carcereiros).", "§ 3º: aumento de 1/3 se a vítima é menor de 14 anos.", "Se o objetivo é causar sofrimento intenso como castigo, o crime é tortura (Lei 9.455/97, art. 1º, II)."],
+      exemplo: "Babá deixa a criança dois dias sem comer como 'castigo educativo'.",
+      atualizacao: "Maus-tratos contra animais é outro crime: art. 32 da Lei 9.605/98." }
+  ]},
+  { capitulo: "Cap. IV · Rixa", itens: [
+    { art: "Art. 137", nome: "Rixa", pena: "Detenção de 15 dias a 2 meses, ou multa · qualificada: 6 meses a 2 anos",
+      resumo: "Participar de rixa, salvo para separar os contendores.",
+      pontos: ["Rixa é a briga tumultuada entre no mínimo 3 pessoas, com agressões recíprocas e sem grupos definidos.", "Se há dois grupos definidos, um contra o outro, não é rixa: cada um responde pelas lesões que causou.", "Quem entra só para separar não comete crime.", "Parágrafo único (rixa qualificada): se ocorre morte ou lesão grave, todos os participantes respondem pela forma qualificada, mesmo sem saber quem causou o resultado.", "Quem for identificado como autor da morte responde por homicídio mais rixa qualificada."],
+      exemplo: "Confusão generalizada na saída do estádio, com cinco torcedores trocando socos entre si." }
+  ]},
+  { capitulo: "Cap. V · Crimes contra a honra", itens: [
+    { art: "Art. 138", nome: "Calúnia", pena: "Detenção de 6 meses a 2 anos, e multa",
+      resumo: "Imputar falsamente a alguém fato definido como crime.",
+      pontos: ["Atinge a honra objetiva (reputação) e se consuma quando um terceiro toma conhecimento.", "Três requisitos: fato determinado, definido como crime e falso. Imputar contravenção é difamação.", "§ 1º: também responde quem, sabendo que é falsa, propala ou divulga a imputação.", "§ 2º: é punível a calúnia contra os mortos.", "§ 3º: admite exceção da verdade, salvo em crime de ação privada sem condenação definitiva, contra o Presidente ou chefe de governo estrangeiro, ou se o ofendido foi absolvido em sentença irrecorrível."],
+      exemplo: "Dizer no grupo da empresa que a colega 'furtou o caixa', sabendo que é mentira." },
+    { art: "Art. 139", nome: "Difamação", pena: "Detenção de 3 meses a 1 ano, e multa",
+      resumo: "Imputar a alguém fato ofensivo à sua reputação.",
+      pontos: ["Atinge a honra objetiva e se consuma quando um terceiro toma conhecimento.", "O fato precisa ser determinado, mas não pode ser crime (se for contravenção, é difamação).", "Tanto faz se o fato é verdadeiro ou falso.", "Exceção da verdade só se o ofendido é funcionário público e a ofensa se refere às suas funções."],
+      exemplo: "Contar na reunião de condomínio que o vizinho 'chega bêbado toda sexta e faz escândalo', mesmo sendo verdade." },
+    { art: "Art. 140", nome: "Injúria", pena: "Detenção de 1 a 6 meses, ou multa · § 2º: 3 meses a 1 ano · § 3º: reclusão de 1 a 3 anos",
+      resumo: "Ofender a dignidade ou o decoro de alguém, atribuindo-lhe qualidade negativa, sem imputar fato.",
+      pontos: ["Atinge a honra subjetiva (autoestima) e se consuma quando a própria vítima toma conhecimento, mesmo sem terceiros presentes.", "Não admite exceção da verdade.", "§ 1º: o juiz pode deixar de aplicar a pena se o ofendido provocou diretamente a injúria ou em caso de retorsão imediata.", "§ 2º: injúria real, com violência ou vias de fato aviltantes (ex.: tapa na cara, cuspir). Soma-se a pena da violência.", "§ 3º: injúria preconceituosa (raça, cor, etnia, religião, origem, idoso ou pessoa com deficiência)."],
+      exemplo: "Gritar 'sua incompetente, idiota!' para outra motorista no trânsito.",
+      atualizacao: "A Lei 14.532/2023 levou a injúria racial (raça, cor, etnia, procedência nacional) para o art. 2º-A da Lei 7.716/89, com pena de 2 a 5 anos. É imprescritível e inafiançável. No § 3º do CP ficaram religião, idoso e pessoa com deficiência." },
+    { art: "Arts. 141 a 145", nome: "Disposições comuns dos crimes contra a honra", pena: "Aumento de 1/3 (art. 141) · pena em dobro se mediante paga",
+      resumo: "Regras de aumento, exclusão do crime, retratação, pedido de explicações e ação penal válidas para calúnia, difamação e injúria.",
+      pontos: ["Art. 141: aumento de 1/3 se contra o Presidente ou chefe de governo estrangeiro, contra funcionário público em razão das funções, na presença de várias pessoas ou por meio que facilite a divulgação, ou contra maior de 60 anos ou pessoa com deficiência (exceto na injúria). Mediante paga: pena em dobro.", "Art. 142: não há injúria ou difamação punível na ofensa em juízo feita pela parte ou procurador, na crítica literária, artística ou científica, nem no conceito desfavorável de funcionário público no dever de ofício. Não vale para a calúnia.", "Art. 143: retratação cabal antes da sentença isenta de pena, só na calúnia e na difamação (não na injúria).", "Art. 144: quem se sente ofendido por frases ambíguas pode pedir explicações em juízo.", "Art. 145: regra é ação penal privada (queixa). Exceções: injúria real com lesão (pública), requisição do Ministro da Justiça contra o Presidente, representação para funcionário público e para a injúria do § 3º."],
+      exemplo: "Quem caluniou alguém em jornal e se retrata de forma completa antes da sentença fica isento de pena. Se o ofendido quiser, a retratação sai pelo mesmo jornal.",
+      atualizacao: "Lei 13.964/2019 (veto derrubado em 2021): pena triplicada se o crime é cometido ou divulgado em redes sociais (art. 141, § 2º). Súmula 714 do STF: no crime contra funcionário público em razão da função, cabe queixa do ofendido ou ação pública condicionada à representação." }
+  ]},
+  { capitulo: "Cap. VI · Crimes contra a liberdade individual", itens: [
+    { art: "Art. 146", nome: "Constrangimento ilegal", pena: "Detenção de 3 meses a 1 ano, ou multa",
+      resumo: "Constranger alguém, mediante violência, grave ameaça ou redução da capacidade de resistência, a não fazer o que a lei permite ou a fazer o que ela não manda.",
+      pontos: ["Crime material: consuma-se quando a vítima faz ou deixa de fazer o que foi exigido.", "Crime subsidiário: se o constrangimento é meio de outro crime (roubo, estupro), é absorvido.", "§ 1º: penas cumulativas e em dobro se participam mais de 3 pessoas ou há emprego de armas.", "§ 2º: soma-se a pena da violência empregada.", "§ 3º: não é crime a intervenção médica sem consentimento em iminente perigo de vida, nem a coação para impedir suicídio."],
+      exemplo: "Com uma faca, o agente obriga o vizinho a sair da vaga de garagem dele e deixá-la livre para seu próprio carro.",
+      atualizacao: "Se a coação visa um processo judicial (ex.: obrigar alguém a não depor), o crime é o mais específico de coação no curso do processo (art. 344)." },
+    { art: "Art. 147", nome: "Ameaça", pena: "Detenção de 1 a 6 meses, ou multa",
+      resumo: "Ameaçar alguém, por palavra, escrito, gesto ou qualquer meio simbólico, de causar-lhe mal injusto e grave.",
+      pontos: ["Crime formal: consuma-se quando a vítima toma conhecimento da ameaça, mesmo que não se intimide.", "O mal precisa ser injusto (ameaçar processar quem deve é exercício de direito) e grave.", "A ameaça deve ser séria e verossímil. Para parte da doutrina, palavras ditas em momento de cólera podem afastar o dolo.", "Diferença do art. 146: na ameaça, o agente não exige nenhum comportamento da vítima.", "Parágrafo único: ação penal pública condicionada à representação."],
+      exemplo: "'Amanhã eu vou atrás de você e quebro suas pernas', dito com seriedade depois de uma briga por vaga.",
+      atualizacao: "A Lei 14.994/2024 dobrou a pena da ameaça contra mulher por razões da condição de sexo feminino, e nesse caso a ação é pública incondicionada. A perseguição (stalking) virou crime autônomo no art. 147-A (Lei 14.132/2021)." },
+    { art: "Art. 148", nome: "Sequestro e cárcere privado", pena: "Reclusão de 1 a 3 anos · § 1º: 2 a 5 · § 2º: 2 a 8",
+      resumo: "Privar alguém de sua liberdade, mediante sequestro ou cárcere privado.",
+      pontos: ["Sequestro: privação em lugar mais amplo (ex.: um sítio). Cárcere privado: confinamento em local fechado (ex.: um quarto). A pena é a mesma.", "Crime permanente: a consumação se prolonga no tempo, e o flagrante é possível enquanto durar.", "§ 1º (2 a 5 anos): vítima ascendente, descendente, cônjuge, companheiro ou maior de 60 anos; internação fraudulenta em casa de saúde; privação por mais de 15 dias; vítima menor de 18 anos; fins libidinosos.", "§ 2º (2 a 8 anos): se resulta grave sofrimento físico ou moral à vítima, por maus-tratos ou pela natureza da detenção.", "Se a finalidade é obter resgate ou vantagem, o crime é extorsão mediante sequestro (art. 159)."],
+      exemplo: "Filho mantém o pai idoso trancado no quarto por 20 dias para ficar com a aposentadoria: forma qualificada do § 1º (incisos I e III)." }
+  ]}
+];
+
+/* ===================== CONFIGURAÇÃO ===================== */
+const VIDAS = 3;
+const CASOS_POR_PARTIDA = 10;   // sorteados do banco acima a cada partida
+const PONTOS_ACERTO = 100;
+const BONUS_COMBO = 20;         // +20 por acerto seguido
+const CUSTO_DICA = 50;
+const CHAVE_RECORDE = "tribunal-coruja-recorde";
+
+const FALAS_ACERTO = ["Sentença perfeita! 🎉", "Isso, doutor(a)! Fundamentou bem! 👏", "Mandou muito bem! A lei agradece. ⚖️", "Acertou! Já pode prestar concurso! 🏆"];
+const FALAS_ERRO = ["Opa, não foi dessa vez... Leia a explicação com carinho. 💜", "Quase! Esse ponto cai muito em prova, vale revisar. 📖", "Errar faz parte do aprendizado. Bora pro próximo! 💪"];
+
+/* ===================== ESTADO ===================== */
+let jogo = null;
+const $ = (id) => document.getElementById(id);
+
+/* ===================== UTILITÁRIOS ===================== */
+function embaralhar(lista) {
+  const a = [...lista];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const sortear = (lista) => lista[Math.floor(Math.random() * lista.length)];
+
+function lerRecorde() {
+  try { return Number(localStorage.getItem(CHAVE_RECORDE)) || 0; } catch { return 0; }
+}
+function salvarRecorde(valor) {
+  try { localStorage.setItem(CHAVE_RECORDE, String(valor)); } catch { /* navegador sem storage */ }
+}
+
+function mostrarTela(id) {
+  document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.id === id));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+// Muda a expressão e a fala da coruja da tela que estiver visível
+function mascote(estado, fala) {
+  const tela = document.querySelector(".screen.on");
+  const coruja = tela.querySelector(".coruja");
+  coruja.classList.remove("feliz", "triste", "pensando");
+  void coruja.getBoundingClientRect(); // reinicia a animação mesmo se o estado se repetir
+  if (estado) coruja.classList.add(estado);
+  tela.querySelector(".balao").textContent = fala;
+}
+
+function confete() {
+  const cores = ["#8b5cf6", "#f59e0b", "#10b981", "#ec4899", "#3b82f6"];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement("span");
+    c.className = "confete";
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.background = sortear(cores);
+    c.style.animationDuration = 1.5 + Math.random() * 1.5 + "s";
+    c.style.animationDelay = Math.random() * 0.4 + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3500); // timeout (e não animationend) p/ funcionar com animações reduzidas
+  }
+}
+
+/* ===================== FLUXO DO JOGO ===================== */
+function iniciarJogo() {
+  jogo = {
+    fila: embaralhar(CASOS).slice(0, CASOS_POR_PARTIDA),
+    indice: 0, vidas: VIDAS, pontos: 0, combo: 0, acertos: 0,
+    respondido: false, dicaUsada: false, erros: []
+  };
+  mostrarTela("tela-jogo");
+  renderizarCaso();
+}
+
+function atualizarHUD() {
+  const total = jogo.fila.length;
+  $("hud-vidas").innerHTML = Array.from({ length: VIDAS }, (_, i) =>
+    `<span class="${i < jogo.vidas ? "" : "perdida"}">❤️</span>`).join("");
+  $("hud-vidas").setAttribute("aria-label", `${jogo.vidas} de ${VIDAS} vidas`);
+  $("hud-pontos").textContent = `${jogo.pontos} pts`;
+  $("hud-combo").hidden = jogo.combo < 2;
+  $("hud-combo").textContent = `🔥 Combo x${jogo.combo}`;
+
+  const feitos = jogo.indice + (jogo.respondido ? 1 : 0);
+  const pct = Math.round((feitos / total) * 100);
+  $("barra-fill").style.width = pct + "%";
+  $("barra").setAttribute("aria-valuenow", pct);
+  $("prog-txt").textContent = `Caso ${jogo.indice + 1} de ${total}`;
+}
+
+function renderizarCaso() {
+  const caso = jogo.fila[jogo.indice];
+  jogo.respondido = false;
+  jogo.dicaUsada = false;
+
+  $("caso-tema").textContent = caso.tema;
+  $("caso-titulo").textContent = caso.titulo;
+  $("caso-texto").textContent = caso.texto;
+  $("caso-pergunta").textContent = caso.pergunta;
+
+  // Embaralha as alternativas, guardando qual é a correta (índice 0 no banco)
+  const opcoes = embaralhar(caso.opcoes.map((texto, i) => ({ texto, certa: i === 0 })));
+  const box = $("opcoes");
+  box.innerHTML = "";
+  opcoes.forEach((op, i) => {
+    const b = document.createElement("button");
+    b.className = "opcao";
+    b.dataset.certa = op.certa;
+    b.innerHTML = `<span class="letra">${"ABCD"[i]}</span><span></span>`;
+    b.lastChild.textContent = op.texto; // textContent evita injeção de HTML
+    b.addEventListener("click", () => responder(b));
+    box.appendChild(b);
+  });
+
+  $("feedback").hidden = true;
+  $("btn-proximo").hidden = true;
+  $("btn-dica").disabled = false;
+  $("btn-dica").hidden = false;
+
+  mascote(null, jogo.indice === 0
+    ? "Primeiro caso! Leia com calma e escolha a classificação correta. 🧐"
+    : `Caso ${jogo.indice + 1}. ${jogo.vidas === 1 ? "Cuidado, só resta uma vida! 😬" : "Vamos lá!"}`);
+  atualizarHUD();
+  $("caso-titulo").focus({ preventScroll: true });
+}
+
+function usarDica() {
+  if (jogo.respondido || jogo.dicaUsada) return;
+  jogo.dicaUsada = true;
+  jogo.pontos = Math.max(0, jogo.pontos - CUSTO_DICA);
+  $("btn-dica").disabled = true;
+  mascote("pensando", "💡 Dica: " + jogo.fila[jogo.indice].dica);
+  atualizarHUD();
+}
+
+function responder(botao) {
+  if (jogo.respondido) return;
+  jogo.respondido = true;
+  const caso = jogo.fila[jogo.indice];
+  const acertou = botao.dataset.certa === "true";
+
+  // Destaca a correta, marca a escolhida (se errada) e apaga as demais
+  document.querySelectorAll(".opcao").forEach((b) => {
+    b.disabled = true;
+    if (b.dataset.certa === "true") b.classList.add("certa");
+    else if (b === botao) b.classList.add("errada");
+    else b.classList.add("apagada");
+  });
+
+  if (acertou) {
+    jogo.acertos++;
+    jogo.combo++;
+    const ganho = PONTOS_ACERTO + BONUS_COMBO * (jogo.combo - 1);
+    jogo.pontos += ganho;
+    mascote("feliz", `${sortear(FALAS_ACERTO)} +${ganho} pts`);
+    if (jogo.combo >= 3) confete();
+  } else {
+    jogo.vidas--;
+    jogo.combo = 0;
+    jogo.erros.push(caso);
+    mascote("triste", jogo.vidas > 0 ? sortear(FALAS_ERRO) : "Ah não, acabaram as vidas... Mas cada erro é uma lição! 💜");
+    const card = botao.closest(".card");
+    card.classList.remove("tremer");
+    void card.offsetWidth;
+    card.classList.add("tremer");
+  }
+
+  const fb = $("feedback");
+  fb.className = "feedback " + (acertou ? "ok" : "bad");
+  $("fb-titulo").textContent = acertou ? "✅ Correto!" : `❌ Incorreto. Resposta: ${caso.opcoes[0]}`;
+  $("fb-artigo").textContent = "📜 " + caso.artigo;
+  $("fb-texto").textContent = caso.explicacao;
+  fb.hidden = false;
+
+  const ultimo = jogo.indice === jogo.fila.length - 1;
+  $("btn-dica").hidden = true;
+  $("btn-proximo").textContent = jogo.vidas === 0 || ultimo ? "Ver resultado 🏁" : "Próximo caso ➜";
+  $("btn-proximo").hidden = false;
+  $("btn-proximo").focus({ preventScroll: true });
+  fb.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  atualizarHUD();
+}
+
+function proximo() {
+  if (!jogo.respondido) return;
+  if (jogo.vidas === 0 || jogo.indice === jogo.fila.length - 1) return finalizar();
+  jogo.indice++;
+  renderizarCaso();
+}
+
+function finalizar() {
+  const total = jogo.fila.length;
+  const respondidos = jogo.indice + 1;
+  const venceu = jogo.vidas > 0;
+  const taxa = jogo.acertos / total;
+  const estrelas = !venceu ? (taxa >= 0.5 ? 1 : 0) : taxa >= 0.9 ? 3 : taxa >= 0.7 ? 2 : 1;
+
+  const recordeAnterior = lerRecorde();
+  const novoRecorde = jogo.pontos > recordeAnterior;
+  if (novoRecorde) salvarRecorde(jogo.pontos);
+
+  mostrarTela("tela-fim");
+  $("fim-titulo").textContent = venceu ? "⚖️ Sessão encerrada: aprovado(a)!" : "💔 Fim de jogo";
+  $("fim-estrelas").innerHTML = [0, 1, 2].map((i) => `<span class="${i < estrelas ? "" : "apagada"}">⭐</span>`).join("");
+  $("fim-estrelas").setAttribute("aria-label", `${estrelas} de 3 estrelas`);
+  $("fim-pontos").textContent = jogo.pontos;
+  $("fim-acertos").textContent = `${jogo.acertos}/${respondidos}`;
+  $("fim-recorde").textContent = Math.max(jogo.pontos, recordeAnterior);
+
+  // Lista os temas errados para revisão
+  $("fim-revisao-box").hidden = jogo.erros.length === 0;
+  $("fim-revisao").innerHTML = "";
+  jogo.erros.forEach((c) => {
+    const li = document.createElement("li");
+    li.innerHTML = "<b></b><br>";
+    li.firstChild.textContent = `${c.titulo} → ${c.opcoes[0]}`;
+    li.append(c.artigo);
+    $("fim-revisao").appendChild(li);
+  });
+
+  let fala;
+  if (estrelas === 3) fala = "Uau! Você é um(a) verdadeiro(a) penalista! 🏆";
+  else if (venceu) fala = "Muito bom! Revise os pontos abaixo e tente as 3 estrelas. ✨";
+  else fala = "Não desanime! Revise os artigos abaixo e jogue de novo. Os casos mudam a cada partida. 📚";
+  if (novoRecorde) fala += " Novo recorde! 🎉";
+  mascote(venceu ? "feliz" : "triste", fala);
+  if (venceu && estrelas >= 2) confete();
+  $("fim-titulo").focus({ preventScroll: true });
+}
+
+/* ===================== TEORIA ===================== */
+// Monta a tela de estudo a partir do array TEORIA (usa textContent p/ segurança)
+function montarTeoria() {
+  const lista = $("teoria-lista");
+  const indice = $("teoria-indice");
+  const el = (tag, cls, txt) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (txt) e.textContent = txt;
+    return e;
+  };
+
+  TEORIA.forEach((cap, ci) => {
+    const sec = el("section");
+    sec.className = "teoria-cap";
+    const h = el("h2", "capitulo", cap.capitulo);
+    h.id = "cap-" + ci;
+    sec.appendChild(h);
+
+    const link = el("a", "", cap.capitulo.replace(/^Cap\. [IVX]+ · /, ""));
+    link.href = "#cap-" + ci;
+    indice.appendChild(link);
+
+    cap.itens.forEach((item) => {
+      const d = el("details", "teoria-item");
+      const s = el("summary");
+      const titulo = el("span");
+      titulo.append(el("span", "art", item.art + " · "), item.nome);
+      s.appendChild(titulo);
+      d.appendChild(s);
+
+      const corpo = el("div", "teoria-corpo");
+      corpo.appendChild(el("span", "pena", "⚖️ " + item.pena));
+      corpo.appendChild(el("p", "", item.resumo));
+      const ul = el("ul");
+      item.pontos.forEach((p) => ul.appendChild(el("li", "", p)));
+      corpo.appendChild(ul);
+      corpo.appendChild(el("div", "exemplo", "🧩 Exemplo: " + item.exemplo));
+      if (item.atualizacao) corpo.appendChild(el("div", "atualizacao", "🆕 Atualização: " + item.atualizacao));
+      d.appendChild(corpo);
+
+      // Texto usado pela busca (sem acento, minúsculo)
+      d.dataset.busca = normalizar([item.art, item.nome, item.resumo, ...item.pontos, item.exemplo, item.atualizacao || ""].join(" "));
+      sec.appendChild(d);
+    });
+    lista.appendChild(sec);
+  });
+}
+
+const normalizar = (t) => t.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+function filtrarTeoria() {
+  const termo = normalizar($("teoria-busca").value.trim());
+  let visiveis = 0;
+  document.querySelectorAll(".teoria-cap").forEach((sec) => {
+    let algum = false;
+    sec.querySelectorAll(".teoria-item").forEach((d) => {
+      const ok = !termo || d.dataset.busca.includes(termo);
+      d.hidden = !ok;
+      d.open = Boolean(termo) && ok; // abre os resultados da busca
+      if (ok) { algum = true; visiveis++; }
+    });
+    sec.hidden = !algum;
+  });
+  $("teoria-vazio").hidden = visiveis > 0;
+}
+
+function abrirTeoria() {
+  mostrarTela("tela-teoria");
+  $("titulo-teoria").focus({ preventScroll: true });
+}
+
+/* ===================== EVENTOS ===================== */
+// Coloca uma cópia da coruja em cada tela
+document.querySelectorAll(".slot-coruja").forEach((slot) =>
+  slot.appendChild($("tpl-coruja").content.cloneNode(true)));
+
+$("ini-casos").textContent = Math.min(CASOS_POR_PARTIDA, CASOS.length);
+$("ini-recorde").textContent = lerRecorde();
+
+$("btn-comecar").addEventListener("click", iniciarJogo);
+$("btn-reiniciar").addEventListener("click", iniciarJogo);
+$("btn-inicio").addEventListener("click", () => {
+  $("ini-recorde").textContent = lerRecorde();
+  mostrarTela("tela-inicio");
+});
+montarTeoria();
+$("btn-teoria").addEventListener("click", abrirTeoria);
+$("btn-fim-teoria").addEventListener("click", abrirTeoria);
+$("btn-teoria-jogar").addEventListener("click", iniciarJogo);
+$("btn-teoria-jogar2").addEventListener("click", iniciarJogo);
+$("btn-teoria-voltar").addEventListener("click", () => {
+  $("ini-recorde").textContent = lerRecorde();
+  mostrarTela("tela-inicio");
+});
+$("teoria-busca").addEventListener("input", filtrarTeoria);
+$("btn-expandir").addEventListener("click", () => {
+  const itens = [...document.querySelectorAll(".teoria-item:not([hidden])")];
+  const abrir = itens.some((d) => !d.open);
+  itens.forEach((d) => (d.open = abrir));
+  $("btn-expandir").textContent = abrir ? "➖ Fechar todos" : "➕ Abrir todos";
+});
+// Links do índice: rola até o capítulo sem trocar a URL
+$("teoria-indice").addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  if (!a) return;
+  e.preventDefault();
+  document.querySelector(a.getAttribute("href")).scrollIntoView({ behavior: "smooth" });
+});
+$("btn-dica").addEventListener("click", usarDica);
+$("btn-proximo").addEventListener("click", proximo);
+
+// Atalhos de teclado: 1–4 escolhem a alternativa, Enter avança
+document.addEventListener("keydown", (e) => {
+  if (!$("tela-jogo").classList.contains("on") || !jogo) return;
+  const n = Number(e.key);
+  if (!jogo.respondido && n >= 1 && n <= 4) {
+    const op = document.querySelectorAll(".opcao")[n - 1];
+    if (op) responder(op);
+  } else if (jogo.respondido && e.key === "Enter" && document.activeElement !== $("btn-proximo")) {
+    proximo(); // se o foco já está no botão, o próprio clique do Enter cuida disso
+  }
+});
+</script>
+</body>
+</html>
